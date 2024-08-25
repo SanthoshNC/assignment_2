@@ -79,10 +79,20 @@ jobs:
           # Create log stream
           aws logs create-log-stream --log-group-name $LOG_GROUP --log-stream-name $LOG_STREAM || true
 
+          # Download logs artifact
+          echo "Downloading logs artifact..."
+          curl -L -o github-actions-logs.log \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/${{ steps.upload-logs.outputs.artifact-id }}/zip"
+
+          # Extract logs from artifact
+          unzip github-actions-logs.log -d /tmp/
+          LOG_FILE="/tmp/github-actions-logs.log"
+
+          # Convert logs to CloudWatch format
+          LOG_EVENTS=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | map({timestamp: (now | floor * 1000), message: .})' < $LOG_FILE)
+
           # Upload logs to CloudWatch
-          # Capture the logs from the GitHub Actions output directly
-          echo "Collecting logs from GitHub Actions..."
-          aws logs put-log-events --log-group-name $LOG_GROUP --log-stream-name $LOG_STREAM --log-events "$(echo "${{ steps.<step-id>.outputs.logs }}" | jq -R -s -c 'split("\n") | map(select(length > 0)) | map({timestamp: (now | floor * 1000), message: .})')"
+          aws logs put-log-events --log-group-name $LOG_GROUP --log-stream-name $LOG_STREAM --log-events "$LOG_EVENTS"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
