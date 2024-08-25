@@ -21,6 +21,12 @@ jobs:
       - name: Checkout the code
         uses: actions/checkout@v4
 
+    ## Secret Scanning
+      - name: Git Secret Scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Docker Build
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/hello-app .   
 
