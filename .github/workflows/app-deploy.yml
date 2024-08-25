@@ -70,31 +70,13 @@ jobs:
       - name: Docker Push
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/hello-app
 
-      - name: Collect logs and send to CloudWatch
-        run: |
-          # Get the current GitHub Actions run ID for log stream naming
-          LOG_STREAM="run-${{ github.run_id }}-${{ github.run_number }}"
-          LOG_GROUP=${{ vars.CLOUDWATCH_LOG_GROUP }}
-          
-          # Create log stream
-          aws logs create-log-stream --log-group-name $LOG_GROUP --log-stream-name $LOG_STREAM || true
+      - name: Download Logs
+        uses: pawanbahuguna/action-logs/@v1.0.1
+        env: 
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          ONLY_24: false # Default is true [Optional]
+          LOGS_DIR: /tmp/
 
-          # Download logs artifact
-          echo "Downloading logs artifact..."
-          curl -L -o github-actions-logs.log \
-            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/${{ steps.upload-logs.outputs.artifact-id }}/zip"
-
-          # Extract logs from artifact
-          unzip github-actions-logs.log -d /tmp/
-          LOG_FILE="/tmp/github-actions-logs.log"
-
-          # Convert logs to CloudWatch format
-          LOG_EVENTS=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | map({timestamp: (now | floor * 1000), message: .})' < $LOG_FILE)
-
-          # Upload logs to CloudWatch
-          aws logs put-log-events --log-group-name $LOG_GROUP --log-stream-name $LOG_STREAM --log-events "$LOG_EVENTS"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ vars.AWS_REGION }}
-          CLOUDWATCH_LOG_GROUP: ${{ vars.CLOUDWATCH_LOG_GROUP }}
+      - name: List the directory
+        run: ls -lrt /tmp
