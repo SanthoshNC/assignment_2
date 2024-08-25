@@ -1,11 +1,15 @@
 name: App Deployment Pipeline
 run-name: ${{ github.actor }} is running the app deployment pipeline 🚀
+
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - app/**
+  workflow_dispatch:
+#on:
+#  push:
+#    branches:
+#      - main
+#    paths:
+#      - app/**
+
 jobs:
   app-deployment-pipeline:
     runs-on: ubuntu-latest
