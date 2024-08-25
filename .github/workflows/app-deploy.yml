@@ -20,12 +20,27 @@ jobs:
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
     ## Secret Scanning
       - name: Git Secret Scanning
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    ## SAST Scanning
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@v3.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: app
+          args: >
+                -Dsonar.organization=santhosh-devops-demo
+                -Dsonar.projectKey=santhosh-devops-demo_scb-assignment
+                -Dsonar.sources=.
+                -Dsonar.verbose=true
 
       - name: Docker Build
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/hello-app .   
