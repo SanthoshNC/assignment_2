@@ -68,4 +68,23 @@ jobs:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Docker Push
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/hello-app   
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/hello-app
+
+      - name: Collect logs and send to CloudWatch
+        run: |
+          # Get the current GitHub Actions run ID for log stream naming
+          LOG_STREAM="run-${{ github.run_id }}-${{ github.run_number }}"
+          LOG_GROUP=${{ vars.CLOUDWATCH_LOG_GROUP }}
+          
+          # Create log stream
+          aws logs create-log-stream --log-group-name $LOG_GROUP --log-stream-name $LOG_STREAM || true
+
+          # Upload logs to CloudWatch
+          # Capture the logs from the GitHub Actions output directly
+          echo "Collecting logs from GitHub Actions..."
+          aws logs put-log-events --log-group-name $LOG_GROUP --log-stream-name $LOG_STREAM --log-events "$(echo "${{ steps.<step-id>.outputs.logs }}" | jq -R -s -c 'split("\n") | map(select(length > 0)) | map({timestamp: (now | floor * 1000), message: .})')"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          CLOUDWATCH_LOG_GROUP: ${{ vars.CLOUDWATCH_LOG_GROUP }}
