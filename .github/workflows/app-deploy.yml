@@ -9,6 +9,10 @@ on:
 jobs:
   app-deployment-pipeline:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+        
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
