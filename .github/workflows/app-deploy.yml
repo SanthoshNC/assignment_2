@@ -1,0 +1,39 @@
+name: App Deployment Pipeline
+run-name: ${{ github.actor }} is running the app deployment pipeline 🚀
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - app/**
+jobs:
+  app-deployment-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Docker Build
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/hello-app .   
+
+      - name: Docker Images
+        run: docker images
+        
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'docker.io/santhoshnc/hello-app:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Docker Push
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/hello-app   
