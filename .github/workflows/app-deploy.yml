@@ -10,6 +10,9 @@ on:
 #    paths:
 #      - app/**
 
+env:
+  LOG_GROUP_NAME: ${{ vars.CLOUDWATCH_LOG_GROUP }}
+
 jobs:
   app-deployment-pipeline:
     runs-on: ubuntu-latest
@@ -70,13 +73,59 @@ jobs:
       - name: Docker Push
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/hello-app
 
-      - name: Download Logs
+      - name: Download 24hrs Old Logs
         uses: pawanbahuguna/action-logs/@v1.0.1
         env: 
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          ONLY_24: false # Default is true [Optional]
-          LOGS_DIR: /tmp/github-actions-logs.log
+          
+      - name: list files
+        run: ls -lrt
+        
+      - name: list files in jobs-log
+        run: ls -lrt jobs-log
+        
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{env.AWS_REGION}}
 
-      - name: List the directory
-        run: ls -lrt /tmp
+      - name: Create job-logs-json directory
+        run: mkdir -p job-logs-json
+
+      - name: Convert First TXT to JSON
+        id: convert
+        run: |
+          # Get the first .txt file
+          file=$(ls jobs-log/*.txt | head -n 1)
+          filename=$(basename "$file" .txt)
+          
+          # Read the file, escape characters, and convert to JSON
+          log_message=$(tr '\n' '\\n' < "$file" | sed 's/"/\\"/g')
+          echo "{\"log\": \"$log_message\"}" > "job-logs-json/${filename}.json"
+
+          # Output the filename for the next step
+          echo "Converted JSON file: job-logs-json/${filename}.json"
+          echo "json_file_path=job-logs-json/${filename}.json" >> $GITHUB_ENV
+
+      - name: Upload JSON to CloudWatch
+        run: |
+          current_date=$(date +%Y-%m-%d)
+          log_stream_name="log-stream-$current_date"
+          
+          # Create log stream if it does not exist
+          aws logs create-log-stream --log-group-name "${{ env.LOG_GROUP_NAME }}" --log-stream-name "$log_stream_name" || true
+
+          # Prepare log events
+          timestamp=$(date +%s%3N)
+          message=$(cat ${{ env.json_file_path }} | jq -Rsa .)
+          
+          log_events="{\"timestamp\": $timestamp, \"message\": $message}"
+
+          # Put logs into CloudWatch
+          aws logs put-log-events \
+            --log-group-name "$log_group_name" \
+            --log-stream-name "$log_stream_name" \
+            --log-events "$log_events"
