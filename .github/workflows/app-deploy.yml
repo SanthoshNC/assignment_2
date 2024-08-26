@@ -117,11 +117,15 @@ jobs:
       - name: Upload JSON to CloudWatch
         working-directory: .
         run: |
+          log_group_name="${{ env.LOG_GROUP_NAME }}"
           current_date=$(date +%Y-%m-%d)
           log_stream_name="log-stream-$current_date"
           
+          # Create log group if it does not exist
+          aws logs create-log-group --log-group-name "$log_group_name" || true
+          
           # Create log stream if it does not exist
-          aws logs create-log-stream --log-group-name "${{ env.LOG_GROUP_NAME }}" --log-stream-name "$log_stream_name" || true
+          aws logs create-log-stream --log-group-name "$log_group_name" --log-stream-name "$log_stream_name" || true
 
           # Prepare log events
           timestamp=$(date +%s%3N)
