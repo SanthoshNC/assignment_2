@@ -80,9 +80,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
           
       - name: list files
+        working-directory: .
         run: ls -lrt
         
       - name: list files in jobs-log
+        working-directory: .
         run: ls -lrt jobs-log
         
       - name: Set up AWS CLI
@@ -93,9 +95,11 @@ jobs:
           aws-region: ${{env.AWS_REGION}}
 
       - name: Create job-logs-json directory
+        working-directory: .
         run: mkdir -p job-logs-json
 
       - name: Convert First TXT to JSON
+        working-directory: .
         id: convert
         run: |
           # Get the first .txt file
@@ -111,6 +115,7 @@ jobs:
           echo "json_file_path=job-logs-json/${filename}.json" >> $GITHUB_ENV
 
       - name: Upload JSON to CloudWatch
+        working-directory: .
         run: |
           current_date=$(date +%Y-%m-%d)
           log_stream_name="log-stream-$current_date"
